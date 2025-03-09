@@ -160,7 +160,46 @@ async function main() {
     
     const items = await getProjectItems(projectId);
     console.log(`Found ${items.length} items in the project`);
+
+    // Export items data to JSON file
+    const exportData = items.map(item => {
+      const content = item.content;
+      const issueUrl = content.repository 
+        ? `https://github.com/${config.github.owner}/${content.repository.name}/issues/${content.number}`
+        : null;
+      
+      return {
+        id: item.id,
+        type: content.__typename,
+        issue_number: content.number,
+        title: content.title,
+        body: content.body,
+        state: content.state,
+        repository: content.repository?.name,
+        author: content.author?.login,
+        created_at: content.createdAt,
+        url: issueUrl,  // GitHub IssueのURLを追加
+        comments: content.comments?.nodes?.map(comment => ({
+          body: comment.body,
+          author: comment.author?.login,
+          created_at: comment.createdAt
+        })),
+        field_values: item.fieldValues?.nodes?.reduce((acc, field) => {
+          if (field?.field) {
+            acc[field.field.name] = field.text || field.date || field.name || field.number;
+          }
+          return acc;
+        }, {})
+      };
+    });
+
+    await fs.promises.writeFile(
+      'project_items_data.json',
+      JSON.stringify(exportData, null, 2)
+    );
+    console.log('Exported project items data to project_items_data.json');
     
+    // Continue with existing attachment processing
     for (const [index, item] of items.entries()) {
       const content = item.content;
       if (!content) {

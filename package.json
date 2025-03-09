@@ -1,8 +1,10 @@
 {
   "type": "module",
   "dependencies": {
+    "@notionhq/client": "^2.2.16",
     "@octokit/graphql": "^8.2.1",
     "dotenv": "^16.4.7",
+    "formdata-node": "^6.0.3",
     "node-fetch": "^2.7.0"
   }
 }
