@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+// ESモジュールで__dirnameを使用するための設定
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -18,6 +19,7 @@ export const config = {
   paths: {
     downloads: path.join(__dirname, 'downloads')
   },
+  // コンテンツタイプと対応する拡張子のマッピング
   contentTypes: {
     'image/jpeg': '.jpg',
     'image/png': '.png',

@@ -2,6 +2,7 @@ import { graphql } from '@octokit/graphql';
 import fetch from 'node-fetch';
 import { config } from '../config.js';
 
+// GraphQLクライアントの初期化
 const graphqlWithAuth = graphql.defaults({
   headers: {
     authorization: `token ${config.github.token}`,
@@ -24,7 +25,7 @@ export async function getProjectId() {
     });
 
     if (!result.user?.projectV2) {
-      // Try organization-level project
+      // ユーザーレベルのプロジェクトが見つからない場合、組織レベルのプロジェクトを試す
       const orgResult = await graphqlWithAuth(`
         query($owner: String!, $number: Int!) {
           organization(login: $owner) {
@@ -39,7 +40,7 @@ export async function getProjectId() {
       });
 
       if (!orgResult.organization?.projectV2) {
-        throw new Error(`Project number ${config.github.projectNumber} not found for user or organization ${config.github.owner}`);
+        throw new Error(`プロジェクト番号 ${config.github.projectNumber} がユーザーまたは組織 ${config.github.owner} で見つかりませんでした`);
       }
 
       return orgResult.organization.projectV2.id;
@@ -142,7 +143,7 @@ export async function getProjectItems(projectId) {
 
     return result.node.items.nodes;
   } catch (error) {
-    console.error('Error fetching project items:', error);
+    console.error('プロジェクトアイテムの取得中にエラーが発生しました:', error);
     throw error;
   }
 }
@@ -191,7 +192,7 @@ export async function getIssueDetails(owner, repo, number) {
     });
     return result.repository.issueOrPullRequest;
   } catch (error) {
-    console.error(`Error fetching details for ${repo}#${number}:`, error.message);
+    console.error(`${repo}#${number} の詳細情報取得中にエラーが発生しました:`, error.message);
     return null;
   }
 }
@@ -205,19 +206,20 @@ export async function downloadFromGitHub(url) {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to download: ${response.statusText}`);
+    throw new Error(`ダウンロードに失敗しました: ${response.statusText}`);
   }
 
   return response;
 }
 
+// 認証エラーの処理
 function handleAuthError(error) {
   if (error.message.includes('Resource not accessible by personal access token')) {
-    console.error('\nError: The GitHub token does not have sufficient permissions.');
-    console.error('Please make sure your token has the following permissions:');
-    console.error('- repo scope (for repository access)');
-    console.error('- project scope (for project access)');
-    console.error('- read:org scope (if accessing organization projects)');
-    console.error('\nYou can update your token at: https://github.com/settings/tokens');
+    console.error('\nエラー: GitHubトークンに十分な権限がありません。');
+    console.error('以下の権限が必要です:');
+    console.error('- リポジトリへのアクセス権限 (repo スコープ)');
+    console.error('- プロジェクトへのアクセス権限 (project スコープ)');
+    console.error('- 組織の読み取り権限 (read:org スコープ) ※組織のプロジェクトにアクセスする場合');
+    console.error('\nトークンは以下のURLで更新できます: https://github.com/settings/tokens');
   }
 }
