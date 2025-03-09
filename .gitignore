@@ -30,3 +30,5 @@ pids
 *.swo
 .DS_Store
 Thumbs.db
+project_items_data.json
+project_items_summary.csv
