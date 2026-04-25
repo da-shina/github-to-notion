@@ -25,7 +25,7 @@ export const config = {
     repo: process.env.GITHUB_REPO,
     projectNumber,
     maxConcurrentRequests: Number.isInteger(maxConcurrentRequests) && maxConcurrentRequests > 0 ? maxConcurrentRequests : 5,
-    allowedHosts: ['github.com', 'api.github.com', 'raw.githubusercontent.com'],
+    allowedHosts: ['github.com', 'api.github.com', 'raw.githubusercontent.com', 'private-user-images.githubusercontent.com'],
     timeout: 10000
   },
   paths: {

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import mime from 'mime-types';
 import { FormData } from 'formdata-node';
 import { fileFromPath } from 'formdata-node/file-from-path';
+import { processInBatches } from './export-from-github.js';
 
 dotenv.config();
 
@@ -49,8 +50,7 @@ async function uploadFile(filepath) {
       throw new Error(`Failed to create upload session: ${sessionResponse.statusText} - ${errorText}`);
     }
 
-    const { file_upload } = await sessionResponse.json();
-    const { id: fileUploadId } = file_upload;
+    const { id: fileUploadId } = await sessionResponse.json();
 
     // Step 2: Upload file via multipart/form-data
     const form = new FormData();
@@ -70,8 +70,8 @@ async function uploadFile(filepath) {
       throw new Error(`Failed to upload file: ${uploadResponse.statusText} - ${errorText}`);
     }
 
-    const { file_upload: completedUpload } = await uploadResponse.json();
-    return completedUpload.id;
+    const { id: fileUploadId } = await uploadResponse.json();
+    return fileUploadId;
   } catch (error) {
     console.error('Error uploading file:', error);
     throw error;
@@ -391,11 +391,11 @@ async function main() {
 
     const data = JSON.parse(await fs.promises.readFile('project_items_data.json', 'utf8'));
 
-    for (const item of data) {
+    async function handler(item) {
       console.log(`Processing item #${item.issue_number}...`);
 
       // Process attachments from downloads directory
-      const itemType = item.type ? item.type.toLowerCase().replace(/ /g, '_') : 'unknown';
+      const itemType = item.type ? item.type.toLowerCase() : 'unknown';
       const downloadPath = path.join('downloads', `${itemType}_${item.issue_number}`);
       console.log(`Checking for attachments in: ${downloadPath}`);
       const attachments = await processAttachments(downloadPath);
@@ -403,10 +403,9 @@ async function main() {
       // Create Notion page
       const page = await createNotionPage(item, attachments);
       console.log(`Created Notion page for item #${item.issue_number}: ${page.url}`);
-
-      // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
+
+    await processInBatches(data, handler, { intervalMs: 1000 });
 
     console.log('Import completed successfully!');
   } catch (error) {

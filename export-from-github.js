@@ -13,14 +13,16 @@ ensureDirectory(config.paths.downloads);
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Process items in batches
-async function processInBatches(items, processFunction, batchSize = config.github.maxConcurrentRequests) {
+export async function processInBatches(items, processFunction, options = {}) {
+  const batchSize = typeof options === 'number' ? options : (options.batchSize ?? config.github.maxConcurrentRequests);
+  const intervalMs = options.intervalMs ?? 1000;
   const results = [];
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
     const batchResults = await Promise.all(batch.map(processFunction));
     results.push(...batchResults.filter(Boolean));
     if (i + batchSize < items.length) {
-      await delay(1000); // API rate limit consideration
+      await delay(intervalMs); // API rate limit consideration
     }
   }
   return results;
