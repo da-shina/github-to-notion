@@ -29,10 +29,10 @@ async function processInBatches(items, processFunction, batchSize = config.githu
 // Extract attachments with improved detection
 function extractAttachments(text, html) {
   if (!text && !html) return [];
-  
+
   const attachments = new Set();
   const processedUrls = new Set();
-  
+
   function processUrl(url) {
     if (!processedUrls.has(url)) {
       if (url.includes('private-user-images.githubusercontent.com')) {
@@ -55,7 +55,7 @@ function extractAttachments(text, html) {
   if (text) {
     const userAttachmentsRegex = /https:\/\/github\.com\/user-attachments\/assets\/[a-f0-9-]+/g;
     const privateImagesRegex = /https:\/\/private-user-images\.githubusercontent\.com[^"'\s)]+/g;
-    
+
     let match;
     while ((match = userAttachmentsRegex.exec(text)) !== null) {
       processUrl(match[0]);
@@ -85,27 +85,28 @@ function extractAttachments(text, html) {
       }
     }
   }
-  
+
   return Array.from(attachments);
 }
 
 async function downloadAttachments(attachments, issueNumber, type = 'issue', content = '', htmlContent = '') {
   if (attachments.length === 0) return [];
-  
+
   const issueDir = path.join(config.paths.downloads, `${type}_${issueNumber}`);
   await ensureDirectory(issueDir);
 
   const downloadFile = async (url) => {
     try {
       const fullAssetId = url.split('/').pop().split('?')[0];
-      const assetId = fullAssetId.includes('-') ? fullAssetId.split('-').pop() : fullAssetId;
-      
+      const assetId = fullAssetId;
+
       // Determine URL and filename
       let downloadUrl = url;
       if (url.includes('user-attachments')) {
-        const videoMatch = htmlContent?.match(/private-user-images\.githubusercontent\.com\/\d+\/([^/"]+)/);
+        const videoMatch = htmlContent?.match(/private-user-images\.githubusercontent\.com\/(\d+)\/([^/"]+)/);
         if (videoMatch) {
-          downloadUrl = `https://private-user-images.githubusercontent.com/139605659/${videoMatch[1]}`;
+          const [, userId, filename] = videoMatch;
+          downloadUrl = `https://private-user-images.githubusercontent.com/${userId}/${filename}`;
           console.log(`Constructed private URL: ${downloadUrl}`);
         }
       }
@@ -114,7 +115,7 @@ async function downloadAttachments(attachments, issueNumber, type = 'issue', con
       const response = await downloadFromGitHub(downloadUrl);
       const contentType = response.headers.get('content-type');
       const ext = getFileExtension(contentType);
-      
+
       // Generate filename
       const originalFilename = global.videoFilenames?.get(assetId) || `attachment_${assetId}${ext}`;
       const finalFilePath = path.join(issueDir, originalFilename);
@@ -157,17 +158,17 @@ async function main() {
     console.log('Fetching project information...');
     const projectId = await getProjectId();
     console.log(`Found project ID: ${projectId}`);
-    
+
     const items = await getProjectItems(projectId);
     console.log(`Found ${items.length} items in the project`);
 
     // Export items data to JSON file
     const exportData = items.map(item => {
       const content = item.content;
-      const issueUrl = content.repository 
+      const issueUrl = content.repository
         ? `https://github.com/${config.github.owner}/${content.repository.name}/issues/${content.number}`
         : null;
-      
+
       return {
         id: item.id,
         type: content.__typename,
@@ -178,7 +179,7 @@ async function main() {
         repository: content.repository?.name,
         author: content.author?.login,
         created_at: content.createdAt,
-        url: issueUrl,  // GitHub IssueのURLを追加
+        url: issueUrl,
         comments: content.comments?.nodes?.map(comment => ({
           body: comment.body,
           author: comment.author?.login,
@@ -198,7 +199,7 @@ async function main() {
       JSON.stringify(exportData, null, 2)
     );
     console.log('Exported project items data to project_items_data.json');
-    
+
     // Continue with existing attachment processing
     for (const [index, item] of items.entries()) {
       const content = item.content;
@@ -207,12 +208,12 @@ async function main() {
         continue;
       }
       console.log(`\nProcessing ${content.__typename} #${content.number} (${index + 1}/${items.length})`);
-      
+
       // Add improved continuation prompt
       if (!await promptForContinuation(index, items.length)) {
         return;
       }
-      
+
       // Extract field values
       const fieldValues = {};
       if (item.fieldValues?.nodes) {
@@ -267,7 +268,7 @@ async function main() {
         }
       }
     }
-    
+
     console.log('\nProcessing complete!');
   } catch (error) {
     console.error('Error in main process:', error);

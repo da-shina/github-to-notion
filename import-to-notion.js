@@ -19,7 +19,7 @@ function getFileType(filename) {
   const ext = path.extname(filename).toLowerCase();
   const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
   const videoExts = ['.mp4', '.mov', '.webm', '.mkv'];
-  
+
   if (imageExts.includes(ext)) return 'image';
   if (videoExts.includes(ext)) return 'video';
   return 'file';
@@ -74,11 +74,11 @@ async function uploadFile(filepath) {
 
 async function createFileBlock(filepath, filename) {
   const fileType = getFileType(filename);
-  
+
   try {
     // ファイルをアップロード
     const uploadedUrl = await uploadFile(filepath);
-    
+
     switch (fileType) {
       case 'image':
         return {
@@ -140,10 +140,10 @@ async function createFileBlock(filepath, filename) {
 async function convertTextToBlocks(text) {
   const blocks = [];
   let lastIndex = 0;
-  
+
   // Figma URLを検出する正規表現を修正（クエリパラメータを含める）
   const figmaPattern = /https:\/\/(?:www\.)?figma\.com\/(file|proto|design)\/([^?\s]+)(?:\?[^\s]+)?/g;
-  
+
   // まずFigmaのURLを処理
   let match;
   while ((match = figmaPattern.exec(text)) !== null) {
@@ -158,7 +158,7 @@ async function convertTextToBlocks(text) {
         }
       });
     }
-    
+
     // FigmaのURLを埋め込みブロックとして追加（完全なURLを使用）
     blocks.push({
       object: 'block',
@@ -167,24 +167,24 @@ async function convertTextToBlocks(text) {
         url: match[0]
       }
     });
-    
+
     lastIndex = match.index + match[0].length;
   }
-  
+
   // 残りのテキストを処理（通常のURLやMarkdownリンクを含む）
   const remainingText = text.slice(lastIndex);
   if (remainingText.trim()) {
     const richTextSegments = [];
     let currentIndex = 0;
-    
+
     // Markdownリンクと通常のURLを検出する正規表現
     const patterns = [
-      /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,  // Markdownリンク
-      /(https?:\/\/(?!(?:www\.)?figma\.com)[^\s<)]+)/g  // Figma以外の通常のURL
+      /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, // Markdownリンク
+      /(https?:\/\/(?!(?:www\.)?figma\.com)[^\s<)]+)/g // Figma以外の通常のURL
     ];
-    
+
     let textToProcess = remainingText;
-    
+
     // まずMarkdownリンクを処理
     while ((match = patterns[0].exec(textToProcess)) !== null) {
       const beforeText = textToProcess.slice(currentIndex, match.index);
@@ -194,7 +194,7 @@ async function convertTextToBlocks(text) {
           text: { content: beforeText }
         });
       }
-      
+
       richTextSegments.push({
         type: 'text',
         text: {
@@ -202,14 +202,14 @@ async function convertTextToBlocks(text) {
           link: { url: match[2] }
         }
       });
-      
+
       currentIndex = match.index + match[0].length;
     }
-    
+
     // 次に残りのテキストから通常のURLを処理
     textToProcess = textToProcess.slice(currentIndex);
     currentIndex = 0;
-    
+
     while ((match = patterns[1].exec(textToProcess)) !== null) {
       const beforeText = textToProcess.slice(currentIndex, match.index);
       if (beforeText) {
@@ -218,7 +218,7 @@ async function convertTextToBlocks(text) {
           text: { content: beforeText }
         });
       }
-      
+
       richTextSegments.push({
         type: 'text',
         text: {
@@ -226,10 +226,10 @@ async function convertTextToBlocks(text) {
           link: { url: match[1] }
         }
       });
-      
+
       currentIndex = match.index + match[1].length;
     }
-    
+
     // 最後の残りのテキストを追加
     const finalText = textToProcess.slice(currentIndex);
     if (finalText) {
@@ -238,7 +238,7 @@ async function convertTextToBlocks(text) {
         text: { content: finalText }
       });
     }
-    
+
     if (richTextSegments.length > 0) {
       blocks.push({
         object: 'block',
@@ -249,7 +249,7 @@ async function convertTextToBlocks(text) {
       });
     }
   }
-  
+
   return blocks;
 }
 
@@ -298,7 +298,7 @@ async function createNotionPage(item, attachments) {
   };
 
   const children = [];
-  
+
   // GitHub IssueのURLを追加
   if (item.url) {
     children.push({
@@ -323,7 +323,7 @@ async function createNotionPage(item, attachments) {
       }
     });
   }
-  
+
   // メインコンテンツを処理
   if (item.body) {
     const bodyBlocks = await convertTextToBlocks(item.body);
@@ -341,12 +341,12 @@ async function createNotionPage(item, attachments) {
           rich_text: [
             {
               type: 'text',
-              text: { content: `${comment.author?.login}:` }
+              text: { content: `${comment.author}:` }
             }
           ]
         }
       });
-      
+
       // コメント本文を処理してURLをリンクブロックに変換
       const commentBlocks = await convertTextToBlocks(comment.body);
       children.push(...commentBlocks);
@@ -398,23 +398,24 @@ async function main() {
     console.log('Available status options:', properties.Status.status.options);
 
     const data = JSON.parse(await fs.promises.readFile('project_items_data.json', 'utf8'));
-    
+
     for (const item of data) {
       console.log(`Processing item #${item.issue_number}...`);
-      
+
       // Process attachments from downloads directory
-      const downloadPath = path.join('downloads', `unknown_${item.issue_number}`);
+      const itemType = item.type ? item.type.toLowerCase().replace(/ /g, '_') : 'unknown';
+      const downloadPath = path.join('downloads', `${itemType}_${item.issue_number}`);
       console.log(`Checking for attachments in: ${downloadPath}`);
       const attachments = await processAttachments(downloadPath);
-      
+
       // Create Notion page
       const page = await createNotionPage(item, attachments);
       console.log(`Created Notion page for item #${item.issue_number}: ${page.url}`);
-      
+
       // Rate limiting
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
+
     console.log('Import completed successfully!');
   } catch (error) {
     console.error('Error in main process:', error);
