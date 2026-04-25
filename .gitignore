@@ -1,7 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
-yarn.lock
 
 # Environment variables
 .env
@@ -9,6 +7,7 @@ yarn.lock
 
 # Downloaded files
 downloads/
+dist/
 
 # Logs
 logs
@@ -30,3 +29,5 @@ pids
 *.swo
 .DS_Store
 Thumbs.db
+project_items_data.json
+project_items_summary.csv

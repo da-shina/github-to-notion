@@ -1,0 +1,8 @@
+# .coderabbit.yaml
+language: "ja"
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+  review_status: true
+  
