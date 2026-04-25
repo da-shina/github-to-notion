@@ -49,10 +49,10 @@ async function uploadFile(filepath) {
       throw new Error(`Failed to get upload URL: ${response.statusText}`);
     }
 
-    const { url, signedUrl } = await response.json();
+    const { url, uploadUrl } = await response.json();
 
     // Step 2: Upload the file to S3
-    const uploadResponse = await fetch(signedUrl, {
+    const uploadResponse = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': contentType,
