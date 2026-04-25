@@ -23,7 +23,7 @@ node import-to-notion.js     # Notionへデータをインポート
 ├── utils/
 │   ├── github-api.js      # GitHub GraphQL API (Octokit) + 添付ファイルDL
 │   ├── file-utils.js      # ファイル操作ユーティリティ
-│   └── interactive-utils.js # 対話的 продолжение プロンプト
+│   └── interactive-utils.js # 対話的継続プロンプト
 └── downloads/             # 添付ファイルのダウンロード先
 ```
 
