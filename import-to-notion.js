@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { Client } from '@notionhq/client';
 import dotenv from 'dotenv';
-import fetch from 'node-fetch';
 import mime from 'mime-types';
 import { FormData } from 'formdata-node';
 import { fileFromPath } from 'formdata-node/file-from-path';
@@ -28,44 +27,51 @@ function getFileType(filename) {
 async function uploadFile(filepath) {
   try {
     const filename = path.basename(filepath);
-    const stats = fs.statSync(filepath);
     const contentType = mime.lookup(filepath) || 'application/octet-stream';
-    const fileContent = fs.readFileSync(filepath);
 
-    // Step 1: Get a signed URL from Notion API
-    const response = await fetch('https://api.notion.com/v1/files', {
+    // Step 1: Create upload session
+    const sessionResponse = await fetch('https://api.notion.com/v1/file_uploads', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
-        'Notion-Version': '2022-06-28',
+        'Notion-Version': '2026-03-11',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        purpose: 'block-content'
+        filename: filename,
+        content_type: contentType,
+        mode: 'single_part'
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to get upload URL: ${response.statusText}`);
+    if (!sessionResponse.ok) {
+      const errorText = await sessionResponse.text();
+      throw new Error(`Failed to create upload session: ${sessionResponse.statusText} - ${errorText}`);
     }
 
-    const { url, uploadUrl } = await response.json();
+    const { file_upload } = await sessionResponse.json();
+    const { id: fileUploadId } = file_upload;
 
-    // Step 2: Upload the file to S3
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'PUT',
+    // Step 2: Upload file via multipart/form-data
+    const form = new FormData();
+    form.set('file', await fileFromPath(filepath), filename);
+
+    const uploadResponse = await fetch(`https://api.notion.com/v1/file_uploads/${fileUploadId}/send`, {
+      method: 'POST',
       headers: {
-        'Content-Type': contentType,
-        'Content-Length': stats.size.toString()
+        'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
+        'Notion-Version': '2026-03-11'
       },
-      body: fileContent
+      body: form
     });
 
     if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload file: ${uploadResponse.statusText}`);
+      const errorText = await uploadResponse.text();
+      throw new Error(`Failed to upload file: ${uploadResponse.statusText} - ${errorText}`);
     }
 
-    return url;
+    const { file_upload: completedUpload } = await uploadResponse.json();
+    return completedUpload.url;
   } catch (error) {
     console.error('Error uploading file:', error);
     throw error;
@@ -259,20 +265,9 @@ async function processAttachments(downloadPath) {
     const files = await fs.promises.readdir(downloadPath);
     for (const file of files) {
       if (file !== 'metadata.json') {
-        attachments.push({
-          object: 'block',
-          type: 'paragraph',
-          paragraph: {
-            rich_text: [
-              {
-                type: 'text',
-                text: {
-                  content: `Attached file: ${file}`
-                }
-              }
-            ]
-          }
-        });
+        const filePath = path.join(downloadPath, file);
+        const fileBlock = await createFileBlock(filePath, file);
+        attachments.push(fileBlock);
       }
     }
   }
@@ -341,7 +336,7 @@ async function createNotionPage(item, attachments) {
           rich_text: [
             {
               type: 'text',
-              text: { content: `${comment.author}:` }
+              text: { content: `${comment.author || 'unknown'}:` }
             }
           ]
         }
