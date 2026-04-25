@@ -141,6 +141,18 @@ export async function getProjectItems(projectId) {
         }
       `, { projectId, first: 100, after: endCursor });
 
+      if (!result || !result.node || !result.node.items) {
+        console.error('GraphQL応答の形状が予期しませんでした:', {
+          projectId,
+          result,
+          hasNextPage,
+          endCursor,
+        });
+        throw new Error(
+          `GraphQL応答が予期しない形状です。projectId="${projectId}", ` +
+            `result=${JSON.stringify(result)}, result.node=${result?.node}, result.node.items=${result?.node?.items}`
+        );
+      }
       const { nodes, pageInfo } = result.node.items;
       allItems.push(...nodes);
       hasNextPage = pageInfo.hasNextPage;

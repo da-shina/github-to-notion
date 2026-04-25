@@ -71,7 +71,7 @@ async function uploadFile(filepath) {
     }
 
     const { file_upload: completedUpload } = await uploadResponse.json();
-    return completedUpload.url;
+    return completedUpload.id;
   } catch (error) {
     console.error('Error uploading file:', error);
     throw error;
@@ -83,7 +83,7 @@ async function createFileBlock(filepath, filename) {
 
   try {
     // ファイルをアップロード
-    const uploadedUrl = await uploadFile(filepath);
+    const uploadedId = await uploadFile(filepath);
 
     switch (fileType) {
       case 'image':
@@ -91,36 +91,33 @@ async function createFileBlock(filepath, filename) {
           object: 'block',
           type: 'image',
           image: {
-            type: 'file',
-            file: {
-              url: uploadedUrl,
-              expiry_time: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-            }
-          }
+       type: 'file_upload',
+       file_upload: {
+         id: uploadedId
+       }
+     }
         };
       case 'video':
         return {
           object: 'block',
           type: 'video',
           video: {
-            type: 'file',
-            file: {
-              url: uploadedUrl,
-              expiry_time: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-            }
-          }
+       type: 'file_upload',
+       file_upload: {
+         id: uploadedId
+       }
+     }
         };
       default:
         return {
           object: 'block',
           type: 'file',
           file: {
-            type: 'file',
-            file: {
-              url: uploadedUrl,
-              expiry_time: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-            }
-          }
+       type: 'file_upload',
+       file_upload: {
+         id: uploadedId
+       }
+     }
         };
     }
   } catch (error) {
